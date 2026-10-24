@@ -23,6 +23,53 @@ La lección no fue la que esperaba: **el harness no es lo importante. Lo importa
 - **Reglas, no prosa**: cada regla nueva es un check ejecutable que nace con su revert-check, la prueba de que puede fallar. Una regla que nunca falla es prosa disfrazada de código.
 - **Dinámico en las dos direcciones**: cada regla registra cuándo dispara. La que nunca dispara se propone para retiro, y el harness no engorda.
 
+## La base: un servidor de conocimiento
+
+Todo en TypedSpec lee y escribe en un mismo lugar: un **servidor de conocimiento**, construido como servidor [MCP](https://modelcontextprotocol.io). Es el centro del método, no un accesorio. El harness puede cambiar de forma; el servidor de conocimiento es lo que hace que todos los agentes, en todas las herramientas, trabajen con el mismo contexto.
+
+```mermaid
+flowchart LR
+  subgraph Clients["cualquier agente, cualquier herramienta"]
+    O["orquestador"]
+    W["workers"]
+    HK["hooks<br/>inicio de sesión · cada mensaje · cada corrida"]
+  end
+  subgraph KS["servidor de conocimiento (MCP)"]
+    TL["tools<br/>búsqueda · brief · criterios de review · contratos · memoria"]
+    RS["resources<br/>knowledge:// · spec:// · contract://"]
+    PR["prompts<br/>pedidos aumentados"]
+  end
+  subgraph Store["lo que sirve"]
+    KR[("repositorio de conocimiento<br/>brief · decisiones (ADRs) · convenciones · specs en YAML")]
+    VX[("índice vectorial<br/>híbrido: semántico + palabras clave")]
+    DB[("almacén relacional<br/>tareas · contratos · reglas · hallazgos · deuda · memorias · telemetría")]
+  end
+  O --> TL
+  W --> TL
+  HK --> TL
+  O --> RS
+  TL --> VX
+  TL --> DB
+  RS --> KR
+  KR -- indexado --> VX
+  KR -- indexado --> DB
+```
+
+Qué hace y por qué importa cada parte:
+
+- **El conocimiento vive una sola vez, fuera del código.** El brief del proyecto, las decisiones de arquitectura, las convenciones y las specs viven en su propio repositorio, versionados y revisados. El servidor los indexa; nadie los copia a mano en los prompts.
+- **Dos mitades de búsqueda.** Un índice vectorial híbrido (semántico más palabras clave, y multilingüe: un pedido en un idioma encuentra conocimiento escrito en otro) responde *qué se parece*. Un almacén relacional responde *qué es exacto*: qué decisión rige este módulo, qué regla aplica a esta ruta, qué check la hace cumplir y a qué tarea pertenece esta corrida.
+- **El contexto llega sin pedirlo.** Antes de que el modelo lea el mensaje de una persona, un hook le pide al servidor lo relevante y lo inyecta. Los saludos y las confirmaciones no reciben nada, así que no cuestan nada.
+- **Briefs para los workers.** Los workers que no pueden consultar el servidor reciben un brief armado con consultas cortas y enfocadas, sin duplicados y filtrado por un puntaje mínimo, en lugar de documentos enteros.
+- **Criterios de review por ruta.** Quien revisa recibe las reglas de review que aplican a los archivos del diff, más el texto exacto de los escenarios que cita la tarea.
+- **Contratos y tareas como registros validados.** El servidor rechaza un contrato o una tarea que no cumple su esquema, así que uno inválido nunca se guarda.
+- **Memoria que sobrevive a la sesión.** Las decisiones, los descubrimientos y los resúmenes de sesión se guardan y se recuperan por significado. Una sesión nueva arranca desde el último resumen y lo pendiente, sin importar qué agente o herramienta la abra.
+- **La telemetría en el mismo lugar.** Cada corrida registra su worker, nodo, modelo, tokens, duración y veredicto, así que costo y calidad se miden donde vive el contexto.
+- **Tools y resources.** Los agentes llaman tools cuando necesitan algo; las personas y los orquestadores adjuntan resources (`knowledge://…`, `spec://…`, `contract://…`) cuando quieren tener a la vista una pieza exacta de contexto.
+- **Una instancia por proyecto.** El mismo código de servidor atiende varios proyectos, cada uno con su conocimiento y su almacén.
+
+Por eso el harness es secundario. Los hooks, los gates y las skills hacen cumplir reglas, y valen lo que vale el contexto sobre el que actúan. El servidor de conocimiento es lo que vuelve ese contexto exacto, compartido y medible.
+
 ## Lo que SDD ya da y lo que TypedSpec agrega
 
 Birgitta Böckeler (Thoughtworks) describe tres niveles de SDD: *spec-first*, *spec-anchored* y *spec-as-source*. TypedSpec se ubica en **spec-as-source** y conserva el núcleo de SDD:
@@ -47,7 +94,7 @@ Cada pull request recorre el mismo grafo dirigido. **Los nodos entre paréntesis
 
 ```mermaid
 flowchart TD
-  REQ([tarea]) --> T["think<br/>base de conocimiento: vector + relacional<br/>brief · decisiones · reglas de estas rutas"]
+  REQ([tarea]) --> T["think<br/>servidor de conocimiento (MCP): vector + relacional<br/>brief · decisiones · reglas de estas rutas"]
   T --> GAP{"gap analysis<br/>¿falta una definición?<br/>¿falta una regla?"}
   GAP -->|falta definición| GUIDE[["persona: definir A y B<br/>todo junto, solo lo que bloquea"]]
   GUIDE --> T
@@ -118,9 +165,8 @@ Más ejemplos: [`examples/scenario.yaml`](examples/scenario.yaml), [`examples/co
 
 ## Las piezas
 
-TypedSpec no depende de un modelo ni de una herramienta. En la práctica corre sobre:
+TypedSpec no depende de un modelo ni de una herramienta. Alrededor del servidor de conocimiento descrito arriba, corre sobre:
 
-- un **servidor de conocimiento** (un servidor MCP) con el conocimiento del proyecto: búsqueda vectorial y un almacén relacional de tareas, contratos, reglas, hallazgos y telemetría de corridas, expuesto como tools y como resources;
 - **hooks** que convierten reglas en topes duros: no se pushea a la rama principal, no se mergea sin checks en verde y todo PR nace en borrador;
 - un **gate local** que corre los mismos pasos que la CI sobre una base vacía y publica su veredicto;
 - **telemetría por corrida**: qué worker corrió qué nodo, tokens, duración, reintentos y qué regla disparó.

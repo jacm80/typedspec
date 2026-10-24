@@ -23,6 +23,53 @@ The lesson was not the one I expected. **The harness is not what matters most. C
 - **Rules, not prose**: every new rule is an executable check, born with a revert-check proving it can fail. A rule that can never fail is prose in disguise.
 - **Dynamic both ways**: every rule records when it fires. A rule that never fires is proposed for retirement, so the harness does not grow fat.
 
+## The foundation: a knowledge server
+
+Everything in TypedSpec reads from and writes to one place: a **knowledge server**, built as an [MCP](https://modelcontextprotocol.io) server. It is the center of the method, not an accessory. The harness can change shape; the knowledge server is what keeps every agent, in every tool, working from the same context.
+
+```mermaid
+flowchart LR
+  subgraph Clients["any agent, any tool"]
+    O["orchestrator"]
+    W["workers"]
+    HK["hooks<br/>session start · every message · every run"]
+  end
+  subgraph KS["knowledge server (MCP)"]
+    TL["tools<br/>search · brief · review criteria · contracts · memory"]
+    RS["resources<br/>knowledge:// · spec:// · contract://"]
+    PR["prompts<br/>augmented requests"]
+  end
+  subgraph Store["what it serves"]
+    KR[("knowledge repository<br/>brief · decisions (ADRs) · conventions · specs as YAML")]
+    VX[("vector index<br/>hybrid: semantic + keyword")]
+    DB[("relational store<br/>tasks · contracts · rules · findings · debt · memories · run telemetry")]
+  end
+  O --> TL
+  W --> TL
+  HK --> TL
+  O --> RS
+  TL --> VX
+  TL --> DB
+  RS --> KR
+  KR -- indexed --> VX
+  KR -- indexed --> DB
+```
+
+What it does, and why each part matters:
+
+- **Knowledge lives once, outside the code.** The project brief, architecture decisions, conventions and specs live in their own repository, versioned and reviewed. The server indexes them; nobody copies them into prompts by hand.
+- **Two halves of retrieval.** A hybrid vector index (semantic plus keyword, multilingual, so a request in one language finds knowledge written in another) answers *what is similar*. A relational store answers *what is exact*: which decision governs this module, which rule applies to this path, which check enforces it, which task this run belongs to.
+- **Context arrives without asking.** Before the model reads a human's message, a hook asks the server for what is relevant and injects it. Greetings and confirmations get nothing, so they cost nothing.
+- **Briefs for workers.** Workers that cannot call the server themselves get a brief built from short, focused queries, deduplicated and filtered by a score floor, instead of whole documents.
+- **Review criteria by path.** A reviewer receives the review rules that apply to the files in the diff, plus the exact text of the scenarios the task cites.
+- **Contracts and tasks as validated records.** The server refuses a contract or a task record that breaks its schema, so an invalid one never gets stored.
+- **Memory that outlives a session.** Decisions, discoveries and session summaries are stored and recalled by meaning. A new session starts from the last summary and the pending work, whichever agent or tool opens it.
+- **Telemetry in the same place.** Every run records its worker, node, model, tokens, duration and verdict, so cost and quality are measured where the context lives.
+- **Tools and resources.** Agents call tools when they need something; humans and orchestrators attach resources (`knowledge://…`, `spec://…`, `contract://…`) when they want an exact piece of context in view.
+- **One instance per project.** The same server code serves several projects, each with its own knowledge and its own store.
+
+This is why the harness is secondary. Hooks, gates and skills enforce rules, and they are only as good as the context they act on. The knowledge server is what makes that context exact, shared and measurable.
+
 ## What SDD already gives, and what TypedSpec adds
 
 Birgitta Böckeler (Thoughtworks) describes three levels of SDD: *spec-first*, *spec-anchored* and *spec-as-source*. TypedSpec sits at **spec-as-source** and keeps SDD's core:
@@ -47,7 +94,7 @@ Every pull request walks the same directed graph. **Nodes in parentheses repeat 
 
 ```mermaid
 flowchart TD
-  REQ([task]) --> T["think<br/>knowledge base: vector + relational<br/>brief · decisions · rules for these paths"]
+  REQ([task]) --> T["think<br/>knowledge server (MCP): vector + relational<br/>brief · decisions · rules for these paths"]
   T --> GAP{"gap analysis<br/>missing definition?<br/>missing rule?"}
   GAP -->|missing definition| GUIDE[["human: define A and B<br/>all at once, only what blocks"]]
   GUIDE --> T
@@ -124,9 +171,8 @@ More examples: [`examples/scenario.yaml`](examples/scenario.yaml), [`examples/co
 
 ## The building blocks
 
-TypedSpec is model-agnostic and tool-agnostic. In practice it runs on:
+TypedSpec is model-agnostic and tool-agnostic. Around the knowledge server described above, it runs on:
 
-- a **knowledge server** (an MCP server) holding the project's knowledge: vector search plus a relational store for tasks, contracts, rules, findings and run telemetry, exposed both as tools and as resources;
 - **hooks** that turn rules into hard stops (no push to the main branch, no merge without green checks, every PR starts as a draft);
 - a **local gate** that runs the same steps as CI on an empty database and publishes its verdict;
 - **telemetry per run**: which worker ran which node, tokens, duration, retries, and which rule fired.

@@ -1,0 +1,20 @@
+# A capability's scenarios as source. Each record is checked:
+# - enforced_by must point to a test that exists and cites this id;
+# - a test citing an id that is not here fails the gate.
+capability: orders
+scenarios:
+  - id: no-session-is-refused
+    given: an order request without a session
+    when: POST /orders
+    then: responds 401 and stores nothing
+    applies_to: [apps/api/src/modules/orders/]
+    decisions: [ADR-012]
+    enforced_by: [apps/api/test/orders.e2e-spec.ts#no-session-is-refused]
+
+  - id: total-is-integer-cents
+    given: a cart with items priced in cents
+    when: the order total is computed
+    then: the total is an integer number of cents, never a float
+    applies_to: [apps/api/src/modules/orders/, packages/pricing/]
+    decisions: [ADR-004]
+    enforced_by: [packages/pricing/src/total.test.ts#total-is-integer-cents]

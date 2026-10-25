@@ -1,0 +1,23 @@
+# The plan the act node writes and the human approves before any file exists.
+# Illustrative shape: at most 10 tasks, each small, each with an executable proof
+# that fails without the change. The gate re-runs every proof; nothing is self-reported.
+change: order-history
+problem: a diner cannot see the orders they placed
+out_of_scope: [cancelling an order, real-time status updates]
+flows: [order-history.feature]          # the scenarios that define done
+tasks:
+  - id: 1
+    type: feature
+    layer: api
+    title: GET /orders returns the caller's orders for the host's tenant
+    files: [src/orders/orders.controller.ts, test/orders.contract.test.ts]
+    forbidden: [taking the tenant from a query parameter or the body]
+    evidence: contract test against a real database; endpoint documented
+    proof: npm test -- orders.contract     # must fail on the base, pass on the branch
+  - id: 2
+    type: feature
+    layer: flow
+    title: the order history page lists the diner's orders
+    files: [src/app/orders/page.tsx, features/steps/orders.steps.ts]
+    evidence: "order-history.feature: A diner sees only their own orders"
+    proof: npx bddgen && npx playwright test -g "only their own orders"

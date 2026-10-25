@@ -10,22 +10,58 @@
 
 ## Por qué existe
 
-Pasé meses construyendo un harness para desarrollar un producto real con agentes de IA: hooks, gates, skills y validaciones. En un momento el proyecto tenía más de una línea de harness por cada línea de producto.
+Pasé meses construyendo un harness para desarrollar un producto real con agentes de IA: hooks, gates, skills y validaciones. En un momento el proyecto tenía más de una línea de harness por cada línea de producto, y casi todo servía solo para ese producto.
 
-La lección no fue la que esperaba: **el harness no es lo importante. Lo importante es el contexto.** Lo que cambió la calidad del trabajo fue *qué ve el agente, en qué momento y con qué garantías*. Eso es context engineering, y TypedSpec es un método para hacerlo a propósito.
+De ahí salieron dos lecciones:
+
+1. **El harness no es lo importante. Lo importante es el contexto.** Lo que cambió la calidad del trabajo fue *qué ve el agente, en qué momento y con qué garantías*. Eso es context engineering, y TypedSpec es un método para hacerlo a propósito.
+2. **Casi todo lo que construí a mano ya existía.** Especificaciones ejecutables, documentación viva, registros de decisiones, rojo antes que verde: generaciones de gente ya lo pensaron. Un método para agentes de IA tiene que apoyarse en eso, no reinventarlo.
+
+## En qué se apoya
+
+TypedSpec inventa poco. Pone prácticas probadas delante de los agentes de IA y suma las dos piezas que les faltan:
+
+| Práctica | Qué toma TypedSpec |
+|---|---|
+| [Behaviour-Driven Development](https://dannorth.net/introducing-bdd/) (Dan North) y [Gherkin](https://cucumber.io/docs/gherkin/) | Flujos escritos en el lenguaje del negocio, ejecutables |
+| Specification by Example (Gojko Adzic) | La spec, el test y la documentación son un solo artefacto |
+| Living Documentation (Cyrille Martraire) | Documentación que no puede quedar vieja, porque falla si miente |
+| TDD y ATDD | El test de aceptación primero; tiene que fallar antes de que exista el cambio |
+| [Architecture Decision Records](https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions) (Michael Nygard) | Una decisión corta por archivo, que nunca se borra, solo se reemplaza |
+| Lenguaje ubicuo (DDD, Eric Evans) | Las mismas palabras en los flujos, el código y la interfaz |
+
+Lo nuevo es el **servidor de conocimiento**, que le da a cada agente exactamente el contexto que necesita, y el **checker**, que vuelve a correr cada prueba en lugar de creerle al agente.
 
 ## La premisa
 
-**Un harness se puede construir a medida que se escribe el código, y evoluciona con quienes lo usan.** No se escribe entero al principio. Cada tarea lo pone a prueba contra el conocimiento del proyecto (brief, decisiones de arquitectura, decisiones previas) y, si falta algo, lo completa:
+**Un harness se puede construir a medida que se escribe el código, y evoluciona con quienes lo usan.** Cada tarea lo pone a prueba contra el conocimiento del proyecto y, si falta algo, lo completa:
 
 - **Si falta una definición**, el orquestador guía a la persona: *"para seguir te falta definir A y B"*. Pregunta todo junto y solo lo que bloquea.
-- **Si falta una regla**, propone un parche del harness (un test, un eval, un E2E o un hook) y la persona aprueba el diff.
-- **Reglas, no prosa**: cada regla nueva es un check ejecutable que nace con su revert-check, la prueba de que puede fallar. Una regla que nunca falla es prosa disfrazada de código.
-- **Dinámico en las dos direcciones**: cada regla registra cuándo dispara. La que nunca dispara se propone para retiro, y el harness no engorda.
+- **Si falta una regla**, propone un cambio del harness (un test, un eval, un flujo de punta a punta, un hook) y la persona aprueba el diff.
+- **Reglas, no prosa**: una regla que el modelo puede ignorar es un deseo. Cada regla es un check ejecutable.
+- **Dinámico en las dos direcciones**: cada regla registra cuándo dispara; la que nunca dispara se propone para retiro.
+
+## Igual para todos los proyectos
+
+TypedSpec es una fábrica, no el harness de un producto. El método es el mismo para un restaurante, un banco, una institución pública, un bufete, un retail o un videojuego, en cualquier stack. Cada proyecto solo declara sus propios valores, en su propio conocimiento.
+
+| Siempre igual | Lo declara cada proyecto |
+|---|---|
+| El grafo: think → act → review → implement → check | Qué revisa cada nodo en ese dominio |
+| Tipos de tarea (feature, bug, chore, harness, question) y sus campos | Las capas y los archivos de cada una |
+| Paradas humanas: el plan y el merge | Las áreas de riesgo que suman una parada |
+| Los gates existen; el test nuevo falla antes del cambio y pasa después; un checker vuelve a correr las pruebas | Los comandos (`pnpm verify`, `pytest`, `go test`) |
+| TDD siempre; de punta a punta cuando hay un flujo que ve el usuario | La evidencia por capa (story de un componente, colección de API, test de replay) |
+| Flujos en Gherkin, leídos con el parser oficial, en el idioma del proyecto | El runner del stack (playwright-bdd, behave, godog) |
+| Un solo layout de conocimiento, así cada proyecto sirve los mismos resources | Su contenido: producto, arquitectura, toolchain, regulación |
+| Agentes por rol: implementer, reviewer, build fixer, debugger, explorer | Los criterios de review, que llegan como contexto |
+| Skills por actividad: planificar, revisar, estado, guardar un punto | Los datos que leen |
+
+Antes de sumar cualquier pieza, dos preguntas: *¿funcionaría igual en otro stack (una API en Python, un servicio en Go)?* y *¿funcionaría igual en otro dominio (un banco, un bufete, un videojuego)?* Si no, la parte que cambia es del conocimiento del proyecto, no del método.
 
 ## La base: un servidor de conocimiento
 
-Todo en TypedSpec lee y escribe en un mismo lugar: un **servidor de conocimiento**, construido como servidor [MCP](https://modelcontextprotocol.io). Es el centro del método, no un accesorio. El harness puede cambiar de forma; el servidor de conocimiento es lo que hace que todos los agentes, en todas las herramientas, trabajen con el mismo contexto.
+Todo lee y escribe en un mismo lugar: un **servidor de conocimiento**, construido como servidor [MCP](https://modelcontextprotocol.io). El harness puede cambiar de forma; el servidor de conocimiento es lo que hace que todos los agentes, en todas las herramientas, trabajen con el mismo contexto. Una instancia sirve a un proyecto, con su propio almacén.
 
 ```mermaid
 flowchart LR
@@ -34,15 +70,15 @@ flowchart LR
     W["workers"]
     HK["hooks<br/>inicio de sesión · cada mensaje · cada corrida"]
   end
-  subgraph KS["servidor de conocimiento (MCP)"]
-    TL["tools<br/>búsqueda · brief · criterios de review · contratos · memoria"]
-    RS["resources<br/>knowledge:// · spec:// · contract://"]
-    PR["prompts<br/>pedidos aumentados"]
+  subgraph KS["servidor de conocimiento (MCP), una instancia por proyecto"]
+    TL["tools<br/>búsqueda · brief · criterios de review · memoria · estado"]
+    RS["resources<br/>knowledge:// · feature:// · flow://"]
   end
   subgraph Store["lo que sirve"]
-    KR[("repositorio de conocimiento<br/>brief · decisiones (ADRs) · convenciones · specs en YAML")]
-    VX[("índice vectorial<br/>híbrido: semántico + palabras clave")]
-    DB[("almacén relacional<br/>tareas · contratos · reglas · hallazgos · deuda · memorias · telemetría")]
+    KR[("repositorio de conocimiento<br/>producto · arquitectura · toolchain · convenciones · decisiones")]
+    FT[("flujos en el repositorio de código<br/>archivos .feature en Gherkin")]
+    VX[("índice<br/>híbrido: semántico + palabras clave")]
+    DB[("estado<br/>tareas · corridas · deuda · memoria episódica")]
   end
   O --> TL
   W --> TL
@@ -51,129 +87,116 @@ flowchart LR
   TL --> VX
   TL --> DB
   RS --> KR
+  RS --> FT
   KR -- indexado --> VX
-  KR -- indexado --> DB
+  FT -- indexado --> VX
 ```
 
-Qué hace y por qué importa cada parte:
-
-- **El conocimiento vive una sola vez, fuera del código.** El brief del proyecto, las decisiones de arquitectura, las convenciones y las specs viven en su propio repositorio, versionados y revisados. El servidor los indexa; nadie los copia a mano en los prompts.
-- **Dos mitades de búsqueda.** Un índice vectorial híbrido (semántico más palabras clave, y multilingüe: un pedido en un idioma encuentra conocimiento escrito en otro) responde *qué se parece*. Un almacén relacional responde *qué es exacto*: qué decisión rige este módulo, qué regla aplica a esta ruta, qué check la hace cumplir y a qué tarea pertenece esta corrida.
-- **El contexto llega sin pedirlo.** Antes de que el modelo lea el mensaje de una persona, un hook le pide al servidor lo relevante y lo inyecta. Los saludos y las confirmaciones no reciben nada, así que no cuestan nada.
-- **Briefs para los workers.** Los workers que no pueden consultar el servidor reciben un brief armado con consultas cortas y enfocadas, sin duplicados y filtrado por un puntaje mínimo, en lugar de documentos enteros.
-- **Criterios de review por ruta.** Quien revisa recibe las reglas de review que aplican a los archivos del diff, más el texto exacto de los escenarios que cita la tarea.
-- **Contratos y tareas como registros validados.** El servidor rechaza un contrato o una tarea que no cumple su esquema, así que uno inválido nunca se guarda.
-- **Memoria que sobrevive a la sesión.** Las decisiones, los descubrimientos y los resúmenes de sesión se guardan y se recuperan por significado. Una sesión nueva arranca desde el último resumen y lo pendiente, sin importar qué agente o herramienta la abra.
-- **La telemetría en el mismo lugar.** Cada corrida registra su worker, nodo, modelo, tokens, duración y veredicto, así que costo y calidad se miden donde vive el contexto.
-- **Tools y resources.** Los agentes llaman tools cuando necesitan algo; las personas y los orquestadores adjuntan resources (`knowledge://…`, `spec://…`, `contract://…`) cuando quieren tener a la vista una pieza exacta de contexto.
-- **Una instancia por proyecto.** El mismo código de servidor atiende varios proyectos, cada uno con su conocimiento y su almacén.
-
-Por eso el harness es secundario. Los hooks, los gates y las skills hacen cumplir reglas, y valen lo que vale el contexto sobre el que actúan. El servidor de conocimiento es lo que vuelve ese contexto exacto, compartido y medible.
-
-## Lo que SDD ya da y lo que TypedSpec agrega
-
-Birgitta Böckeler (Thoughtworks) describe tres niveles de SDD: *spec-first*, *spec-anchored* y *spec-as-source*. TypedSpec se ubica en **spec-as-source** y conserva el núcleo de SDD:
-
-| SDD ya hace | TypedSpec lo conserva y agrega |
-|---|---|
-| Requisitos y escenarios (GIVEN / WHEN / THEN) | Escenarios como **registros estructurados** (YAML) con ID estable, enlazados a los tests que los hacen cumplir |
-| Un plan aprobado antes de implementar | Un **contrato tipado** por pull request, validado por un esquema y revisado *antes* de escribir código |
-| Tareas con criterios de aceptación | Criterios de aceptación, archivos permitidos, lo prohibido, un revert-check y un **factor de riesgo** |
-| Review y CI | **Receipts**: los comandos de prueba los vuelve a correr otro proceso; nunca se toma la palabra del agente |
-
-| TypeScript | TypedSpec |
-|---|---|
-| tipos | el contrato: criterios, archivos, prohibido, receipts, riesgo |
-| `tsc` antes de correr | el esquema y el review del contrato antes de implementar |
-| tests en runtime | el check: receipts re-corridos por el checker |
-| `strict` | riesgo alto: una persona aprueba el contrato |
+- **Tres almacenes, nunca mezclados.** El *conocimiento* es texto curado en un repositorio, versionado y revisado. La *memoria episódica* (lo que aprendió una corrida) tiene fecha y expira salvo que se promueva a decisión. El *estado operativo* (tareas, corridas, deuda) son filas tipadas, consultadas por filtros, nunca embebidas.
+- **Dos mitades de la búsqueda.** Un índice híbrido responde *qué se parece*, entre idiomas; el almacén relacional responde *qué es exacto*: qué decisión gobierna este módulo, qué regla aplica a esta ruta.
+- **El contexto llega sin pedirlo.** Antes de que el modelo lea el mensaje de una persona, un hook le pide al servidor lo relevante y lo inyecta. Un saludo no recibe nada, así que no cuesta nada.
+- **Criterios de review por ruta.** El reviewer recibe las reglas de los archivos del diff y el texto exacto de los flujos que toca la tarea.
+- **Flujos como diagramas, generados.** `flow://<capacidad>` dibuja los escenarios Gherkin como diagrama cuando se pide, así el dibujo nunca contradice la spec.
+- **Memoria que sobrevive a la sesión.** Una sesión nueva arranca desde el último resumen y lo pendiente, sin importar qué agente la abra.
+- **Telemetría en el mismo lugar.** Cada corrida registra su worker, nodo, modelo, tokens, duración y veredicto.
 
 ## El grafo
 
-Cada pull request recorre el mismo grafo dirigido. **Los nodos entre paréntesis se repiten hasta pasar**, con tope: al cuarto fallo se escala a una persona con las hipótesis probadas.
+Cada cambio recorre el mismo grafo. Dos pasos son de una persona: aprobar el plan y mergear.
 
 ```mermaid
 flowchart TD
-  REQ([tarea]) --> T["think<br/>servidor de conocimiento (MCP): vector + relacional<br/>brief · decisiones · reglas de estas rutas"]
-  T --> GAP{"gap analysis<br/>¿falta una definición?<br/>¿falta una regla?"}
-  GAP -->|falta definición| GUIDE[["persona: definir A y B<br/>todo junto, solo lo que bloquea"]]
-  GUIDE --> T
-  GAP -->|falta regla| H["parche del harness<br/>test · eval · e2e · hook<br/>cada uno con revert-check"]
-  H --> OWN0[["la persona aprueba el diff del harness"]]
-  OWN0 --> A
-  GAP -->|no falta nada| A
-  A["act<br/>escribe el CONTRATO<br/>criterios · archivos · prohibido · revert-check · receipts · riesgo"]
-  A --> G1{"¿contrato válido?<br/>esquema"}
-  G1 -->|no| A
-  G1 -->|sí| R["(review) · otro revisor<br/>los criterios cubren los requisitos · el riesgo está bien<br/>los receipts se pueden correr · archivos mínimos"]
-  R -->|rechaza · critique| A
-  R -->|aprueba| RISK{"factor de riesgo"}
-  RISK -->|alto: pagos · auth · datos de clientes · migraciones| OWN1[["la persona aprueba el contrato"]]
-  RISK -->|bajo| I
-  OWN1 --> I["implement<br/>rama · solo los archivos del contrato<br/>diff + PR en borrador"]
-  I --> G2{"¿el diff respeta los archivos?<br/>¿nada prohibido?"}
-  G2 -->|no| I
-  G2 -->|sí| C["(check)<br/>verify: el checker re-corre receipts, revert-check y gate<br/>validate: ¿cumple los criterios y la intención?"]
-  C -->|falla el código · critique| I
-  C -->|el contrato estaba mal| A
-  C -->|pasa| READY["listo para review"]
-  READY --> OWN2[["la persona mergea"]]
-  R -. 4º rechazo .-> ESC[["escala con hipótesis"]]
-  C -. 4º fallo .-> ESC
-  C -. cada regla registra si disparó .-> TEL[("telemetría de reglas")]
-  TEL -. sin disparar en N semanas .-> RET["propone retirar la regla"]
-  RET -.-> OWN0
+  REQ([tarea]) --> T["think<br/>busca en el servidor de conocimiento<br/>producto · decisiones · reglas de estas rutas"]
+  T --> GAP{"¿falta algo?"}
+  GAP -->|está en el conocimiento| T
+  GAP -->|una definición que solo tiene la persona| ASK[["la persona responde<br/>todas las preguntas juntas"]]
+  ASK --> T
+  GAP -->|no falta nada| A["act<br/>el plan: máximo 10 tareas chicas<br/>cada una con su tipo, archivos, evidencia y prueba"]
+  A --> R[["review<br/>la persona aprueba el plan<br/>antes de que exista un archivo"]]
+  R -->|pide cambios| A
+  R -->|aprobado| I["implement<br/>una tarea por vez · pull request en draft<br/>los workers siguen ReAct con una reflexión"]
+  I --> C["check · el gate<br/>los tests nuevos fallan en la base y pasan en la rama<br/>el checker vuelve a correr cada prueba"]
+  C -->|rojo| I
+  C -->|verde| RV["check · una pasada de review<br/>un reviewer nuevo, con memoria de hallazgos pasados"]
+  RV --> F["se corrigen los hallazgos de esa review, una vez"]
+  F --> M[["la persona mergea"]]
+  RV -. enfoque equivocado .-> A
+  RV -. fuera de la tarea .-> D[["la persona: arreglar ahora, saltar o registrar como deuda"]]
 ```
 
-En el vocabulario de patrones de agentes es un **workflow** (las rutas las fija el código, no el modelo). Por dentro es prompt chaining con gates programáticos y combina:
-- dos lazos **evaluator-optimizer**: el review del contrato y el check de la implementación;
-- **routing** por riesgo;
-- un **interrupt** humano, solo cuando el riesgo es alto;
-- **orchestrator-workers**: un orquestador y workers más baratos.
+- **think** sigue buscando en el conocimiento antes de preguntar; a la persona le pregunta solo lo que el conocimiento no responde, y todo junto.
+- **act** escribe el plan. Una tarea que no entra se divide; una tarea sin prueba ejecutable no es una tarea.
+- **review** es la primera parada humana, antes de que exista código, cuando cambiar de rumbo es más barato.
+- **implement** corre workers que siguen ReAct con una línea de reflexión. La confianza que declaran se registra como métrica, nunca como evidencia. La cuarta falla escala con las hipótesis probadas.
+- **check** tiene dos partes. El gate prueba el cambio mecánicamente: cada test nuevo tiene que fallar en la base y pasar en la rama, y el checker vuelve a correr las pruebas él mismo. Después, una pasada de review; sus hallazgos se corrigen una vez y la persona mergea. Sin lazos de review.
 
-Cada worker sigue ReAct con una línea de reflexión, y la confianza que declara es una métrica, nunca una evidencia.
+## Evidencia por tipo de tarea
+
+El método le exige una sola cosa a cada tarea: una prueba ejecutable que falle sin el cambio. Qué prueba, lo elige el proyecto, por tipo y por capa.
+
+| Tipo | Lo que exige el método | Lo que eligió un proyecto (un SaaS web) |
+|---|---|---|
+| feature | el escenario del flujo falla primero y después pasa | componente: story + test unitario · API: contract test, colección de API con asserts, endpoint documentado · flujo: Gherkin de punta a punta |
+| bug | la reproducción falla en la base y pasa en la rama | la misma reproducción, como test |
+| chore | los tests existentes siguen verdes, sin tocarlos | — |
+| harness | un test del script o del hook, o un eval | eval cuando cambia un agente o un prompt |
+| question | una respuesta dentro de su límite; sin código | — |
+
+Un videojuego elegiría tests de replay y de simulación; un banco sumaría un check de trazabilidad por cada movimiento de dinero. La regla es la misma: verificar valores del negocio, nunca estructura — *el total es 12980*, no *el total es mayor que cero*, y nunca nombres de clases ni markup.
+
+## Specs que se ejecutan
+
+Un flujo se escribe una sola vez, en Gherkin, en el lenguaje del negocio, y es a la vez la especificación, el test y la documentación:
+
+```gherkin
+# language: es
+Característica: Historial de pedidos
+  Escenario: Un comensal ve solo sus pedidos
+    Dado un restaurante "demo" con un producto "Pizza" a 9990 y envío a 2990
+    Cuando un invitado pide 1 "Pizza" como "ana@test.com"
+    Y "ana@test.com" abre su historial de pedidos
+    Entonces ve 1 pedido con total 12980
+    Y no ve pedidos de "luis@test.com"
+```
+
+- **Los flujos sobreviven a la tecnología.** Los steps encuentran las cosas como un usuario: por rol y texto visible, nunca por nombres de clases. Se puede borrar el código, reconstruirlo en otro framework, y los flujos dicen cuándo está terminado.
+- **Los flujos viven junto al código** que los hace pasar, así un flujo y sus steps cambian en un solo pull request. El servidor de conocimiento los indexa y los sirve.
+- **Se escriben en términos del negocio.** "Cuando un invitado pide 2 pizzas", no "click, escribo, click". Los escenarios imperativos son la forma clásica en que BDD se pudre.
+
+Más en [`examples/`](examples/).
+
+## El layout del conocimiento
+
+El conocimiento de cada proyecto tiene la misma forma, así el servidor ofrece los mismos resources en todos:
+
+```
+knowledge/<proyecto>/
+  index.md        el mapa: una línea por documento vigente
+  prd/            qué se construye y por qué: producto, usuarios, requisitos, roadmap
+  asd/            arquitectura: stack, límites, patrones, datos
+  dtr/            toolchain: versiones, build, tests, CI, scripts
+  conventions/    cómo se trabaja: código, review, proceso
+  decisions/      ADRs, una sola numeración
+  howto/          guías de tareas, una por archivo
+  history/        registros congelados: cambios, auditorías, investigación, planes, snapshots
+  assets/         imágenes, PDFs, grabaciones: nunca se indexan, se enlazan desde el texto que los explica
+```
+
+Cada documento lleva frontmatter (`id`, `type`, `status`, `summary`, `links`, `supersedes`), así los documentos forman un grafo que el servidor puede recorrer, y la búsqueda devuelve solo lo vigente salvo que se pida historia. La investigación nunca edita directamente el producto ni los flujos: lo que vale la pena se convierte en una decisión o un escenario mediante un diff que aprueba la persona.
 
 ## Principios de context engineering
 
-1. **Buscar antes de preguntar.** El agente no recibe documentos enteros. Recibe las reglas que aplican a los archivos que va a tocar, sacadas de una base de conocimiento con dos mitades: la vectorial busca *lo parecido* y la relacional responde *lo exacto* (qué decisión rige este módulo, qué regla aplica a esta ruta y qué check la hace cumplir). Esa es también la respuesta al *lost in the middle*.
-2. **Reglas como código, no como prosa.** Una regla que el modelo puede ignorar es un deseo. Cada regla es un test, un hook o un eval, y la prosa de instrucciones tiene prohibido crecer: hay un check que cuenta sus palabras.
-3. **La confianza es una métrica, no una evidencia.** "Listo, funciona" no prueba nada. Otro proceso vuelve a correr la prueba, y así se detecta la evidencia fabricada.
-4. **Contrato antes que código.** Corregir un contrato es mucho más barato que corregir código.
-5. **El riesgo decide cuándo interviene la persona.** Un cambio de riesgo alto se detiene en el contrato; uno de riesgo bajo, solo en el merge.
-6. **Medir antes de decidir.** Las ideas que suenan bien se miden antes. Un ejemplo de la práctica: resumir automáticamente un contexto que la búsqueda ya había filtrado perdía hasta la mitad de los datos que importaban.
-7. **El harness crece y también se poda.** La regla que nunca dispara se va.
-
-## Spec as source
-
-Un escenario es un registro, no un párrafo. El YAML del repositorio es la fuente de verdad, porque se revisa en los pull requests y tiene historia en git. Una base de datos lo indexa para que los agentes lo consulten rápido y barato.
-
-```yaml
-- id: no-session-is-refused
-  capability: orders
-  given: un pedido sin sesión
-  when: POST /orders
-  then: responde 401
-  applies_to: [apps/api/src/modules/orders/]
-  decisions: [ADR-012]
-  enforced_by: [orders.e2e-spec.ts#no-session-is-refused]
-```
-
-- **El drift pasa a ser un check rojo.** Un escenario cuyo `enforced_by` no existe, o un test que cita un ID desconocido, hace fallar el gate.
-- **El contexto es exacto.** Cada agente recibe solo los escenarios cuyo `applies_to` coincide con los archivos de su contrato.
-
-Más ejemplos: [`examples/scenario.yaml`](examples/scenario.yaml), [`examples/contract.yaml`](examples/contract.yaml).
-
-## Las piezas
-
-TypedSpec no depende de un modelo ni de una herramienta. Alrededor del servidor de conocimiento descrito arriba, corre sobre:
-
-- **hooks** que convierten reglas en topes duros: no se pushea a la rama principal, no se mergea sin checks en verde y todo PR nace en borrador;
-- un **gate local** que corre los mismos pasos que la CI sobre una base vacía y publica su veredicto;
-- **telemetría por corrida**: qué worker corrió qué nodo, tokens, duración, reintentos y qué regla disparó.
+1. **Buscar antes de preguntar.** Los agentes reciben las reglas de los archivos que van a tocar, no documentos enteros. Es también la respuesta al *lost in the middle*.
+2. **Reglas como código, no prosa.** La prosa de instrucciones no puede crecer: un check cuenta sus palabras.
+3. **La confianza es una métrica, no evidencia.** "Listo, funciona" no prueba nada; un proceso aparte vuelve a correr la prueba.
+4. **Plan antes que código.** Corregir un plan es mucho más barato que corregir código.
+5. **Medir antes de decidir.** Un ejemplo: resumir automáticamente un contexto que la búsqueda ya había filtrado perdía hasta la mitad de los datos que importaban.
+6. **Usar la práctica que ya existe.** Antes de escribir un script nuevo, nombrar la práctica establecida que lo resuelve y usar su herramienta estándar.
+7. **El harness crece y se poda.** Las reglas que nunca disparan se van.
 
 ## Estado
 
-Los principios salen de meses de práctica diaria sobre un producto real. El grafo completo se está probando ahora, un pull request corto a la vez. Este repositorio va a reunir lo que mida el piloto, incluido lo que no funcione.
+Los principios vienen de meses de práctica diaria en un producto real. El método se está piloteando ahora, un pull request corto por vez, empezando por pasar los smoke scripts escritos a mano de ese producto a flujos Gherkin. Este repositorio va a juntar lo que mida el piloto, incluido lo que no funcione.
 
 ## Licencia
 

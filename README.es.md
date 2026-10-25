@@ -198,6 +198,10 @@ Cada documento lleva frontmatter (`id`, `type`, `status`, `summary`, `links`, `s
 
 Los principios vienen de meses de práctica diaria en un producto real. El método se está piloteando ahora, un pull request corto por vez, empezando por pasar los smoke scripts escritos a mano de ese producto a flujos Gherkin. Este repositorio va a juntar lo que mida el piloto, incluido lo que no funcione.
 
+## Sumate a la discusión
+
+Preguntas, objeciones, tus propios resultados con el método, un dominio donde no funciona: [abrí una discusión](https://github.com/jacm80/typedspec/discussions). Las ideas van en *Ideas*, las preguntas en *Q&A* y lo que construiste en *Show and tell*.
+
 ## Licencia
 
 [CC BY 4.0](LICENSE): se puede compartir y adaptar citando la fuente.

@@ -198,6 +198,10 @@ Every document carries frontmatter (`id`, `type`, `status`, `summary`, `links`, 
 
 The principles come from months of daily practice on a real product. The method is being piloted now, one short pull request at a time, starting with moving that product's hand-written smoke scripts to Gherkin flows. This repository will collect what the pilot measures, including what does not work.
 
+## Join the discussion
+
+Questions, objections, your own results with the method, a domain where it breaks: [open a discussion](https://github.com/jacm80/typedspec/discussions). Ideas go to *Ideas*, questions to *Q&A*, what you built to *Show and tell*.
+
 ## License
 
 [CC BY 4.0](LICENSE): share and adapt with attribution.

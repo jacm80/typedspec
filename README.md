@@ -139,6 +139,7 @@ Two kinds of control keep the work honest. They are siblings, not one inside the
 | gate | A checkpoint at the boundary between two stages. The work does not pass until it is crossed. |
 | quality gate | An automatic gate: a set of pass/fail conditions. The `check` node is one. |
 | approval gate | A human gate: a person approves. The method has two, the plan and the merge. |
+| human in the loop (HITL) | The pattern: a person decides at a set point. Approval gates are its concrete form. |
 | guardrail | A continuous automatic control over what an agent receives, does and returns while it works (input, tool, output). Its tripwire stops the run. |
 
 An output guardrail placed at a stage boundary works as a quality gate.

@@ -139,6 +139,7 @@ Dos tipos de control mantienen el trabajo honesto. Son hermanos, no uno dentro d
 | gate | Un punto de control en la frontera entre dos etapas. El trabajo no pasa hasta cruzarlo. |
 | quality gate | Un gate automático: un conjunto de condiciones de pasa o no pasa. El nodo `check` es uno. |
 | approval gate | Un gate humano: una persona aprueba. El método tiene dos, el plan y el merge. |
+| human in the loop (HITL) | El patrón: una persona decide en un punto fijo. Los approval gates son su forma concreta. |
 | guardrail | Un control automático continuo sobre lo que un agente recibe, hace y devuelve mientras trabaja (entrada, herramienta, salida). Su tripwire corta la corrida. |
 
 Un guardrail de salida puesto en la frontera de una etapa funciona como quality gate.

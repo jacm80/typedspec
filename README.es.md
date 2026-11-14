@@ -130,6 +130,23 @@ flowchart TD
 - **implement** corre workers que siguen ReAct con una línea de reflexión. La confianza que declaran se registra como métrica, nunca como evidencia. La cuarta falla escala con las hipótesis probadas.
 - **check** tiene dos partes. El gate prueba el cambio mecánicamente: cada test nuevo tiene que fallar en la base y pasar en la rama, y el checker vuelve a correr las pruebas él mismo. Después, una pasada de review; sus hallazgos se corrigen una vez y la persona mergea. Sin lazos de review.
 
+## Gates y guardrails
+
+Dos tipos de control mantienen el trabajo honesto. Son hermanos, no uno dentro del otro.
+
+| Término | Qué es |
+|---|---|
+| gate | Un punto de control en la frontera entre dos etapas. El trabajo no pasa hasta cruzarlo. |
+| quality gate | Un gate automático: un conjunto de condiciones de pasa o no pasa. El nodo `check` es uno. |
+| approval gate | Un gate humano: una persona aprueba. El método tiene dos, el plan y el merge. |
+| guardrail | Un control automático continuo sobre lo que un agente recibe, hace y devuelve mientras trabaja (entrada, herramienta, salida). Su tripwire corta la corrida. |
+
+Un guardrail de salida puesto en la frontera de una etapa funciona como quality gate.
+
+El método exige que existan ambos. Cada proyecto declara cuáles, como en [igual para todos los proyectos](#igual-para-todos-los-proyectos).
+
+Fuentes: [SonarQube quality gates](https://docs.sonarsource.com/sonarqube-server/quality-standards-administration/managing-quality-gates/introduction-to-quality-gates) · [Azure Pipelines approvals and checks](https://learn.microsoft.com/azure/devops/pipelines/process/approvals) · [GitHub environments, required reviewers](https://docs.github.com/en/actions/reference/deployments-and-environments) · [OpenAI Agents SDK guardrails](https://openai.github.io/openai-agents-python/guardrails/) · [Anthropic, Building effective agents](https://www.anthropic.com/engineering/building-effective-agents)
+
 ## Evidencia por tipo de tarea
 
 El método le exige una sola cosa a cada tarea: una prueba ejecutable que falle sin el cambio. Qué prueba, lo elige el proyecto, por tipo y por capa.

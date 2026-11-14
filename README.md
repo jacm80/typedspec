@@ -130,6 +130,23 @@ flowchart TD
 - **implement** runs workers that follow ReAct with one reflection line. Their stated confidence is recorded as a metric, never taken as evidence. The fourth failure escalates with the hypotheses tried.
 - **check** has two parts. The gate proves the change mechanically: every new test must fail on the base and pass on the branch, and the checker re-runs the proofs itself. Then one review pass; its findings are fixed once, and the human merges. No review loops.
 
+## Gates and guardrails
+
+Two kinds of control keep the work honest. They are siblings, not one inside the other.
+
+| Term | What it is |
+|---|---|
+| gate | A checkpoint at the boundary between two stages. The work does not pass until it is crossed. |
+| quality gate | An automatic gate: a set of pass/fail conditions. The `check` node is one. |
+| approval gate | A human gate: a person approves. The method has two, the plan and the merge. |
+| guardrail | A continuous automatic control over what an agent receives, does and returns while it works (input, tool, output). Its tripwire stops the run. |
+
+An output guardrail placed at a stage boundary works as a quality gate.
+
+The method requires both to exist. Each project declares which ones, as in [the same for every project](#the-same-for-every-project).
+
+Sources: [SonarQube quality gates](https://docs.sonarsource.com/sonarqube-server/quality-standards-administration/managing-quality-gates/introduction-to-quality-gates) · [Azure Pipelines approvals and checks](https://learn.microsoft.com/azure/devops/pipelines/process/approvals) · [GitHub environments, required reviewers](https://docs.github.com/en/actions/reference/deployments-and-environments) · [OpenAI Agents SDK guardrails](https://openai.github.io/openai-agents-python/guardrails/) · [Anthropic, Building effective agents](https://www.anthropic.com/engineering/building-effective-agents)
+
 ## Evidence by task type
 
 The method demands one thing of every task: an executable proof that fails without the change. Which proof is the project's choice, by type and layer.
